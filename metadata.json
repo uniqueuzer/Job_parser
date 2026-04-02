@@ -1,0 +1,5 @@
+{
+  "name": "JobsIreland Scraper MVP",
+  "description": "A job scraper for jobsireland.ie with a React frontend, Express backend, and a standalone Python scraper script.",
+  "requestFramePermissions": []
+}
