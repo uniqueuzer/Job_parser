@@ -19,6 +19,7 @@ HEADERS = {
     "Accept": "application/json, text/plain, */*",
     "Referer": "https://jobsireland.ie/",
     "Accept-Language": "en-US,en;q=0.9",
+    "X-Requested-With": "XMLHttpRequest",
     "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
     "Sec-Ch-Ua-Mobile": "?0",
     "Sec-Ch-Ua-Platform": '"Windows"',
@@ -27,14 +28,28 @@ HEADERS = {
     "Sec-Fetch-Site": "same-origin"
 }
 
-STOP_WORDS = [
-    "cleaner", "cleaning", "caretaker", "janitor", "maintenance", 
-    "grounds", "groundsworker", "gardener", "landscaping", 
-    "delivery", "warehouse", "forklift", "courier", "labourer", 
-    "construction", "cook", "kitchen", "catering", "chef", 
-    "barista", "waiter", "waitress", "bartender", "bakery", 
-    "cashier", "security guard", "guard", "hairdresser", 
-    "beautician", "barber", "childcare", "childminder", 
-    "early years", "sna", "special needs", "care assistant", 
-    "carer", "healthcare assistant", "youth worker"
+# Tier 1: Exact Phrase Blacklist (Kill immediately)
+TIER1_EXACT_PHRASES = [
+    "security guard", "security officer", "security patrol", "night watch",
+    "delivery driver", "delivery rider", "van driver", "multi-drop",
+    "warehouse operative", "warehouse assistant", "warehouse worker", "stores person", "forklift",
+    "cleaning operative", "cleaning assistant", "window cleaner",
+    "care assistant", "healthcare assistant", "home care", "childcare", "special needs assistant",
+    "kitchen assistant", "catering assistant", "food prep", "sous chef", "head chef",
+    "general operative", "labourer", "site worker", "cleaner", "barista", "waiter", "waitress", "bartender"
+]
+
+# Tier 2: Whitelist / Immunity (Save immediately, send to AI)
+TIER2_WHITELIST = [
+    "data", "software", "developer", "engineer", "cloud", "devops", "cyber", 
+    "network", "infrastructure", "system", "database", "architect",
+    "machine learning", "ai ", "artificial intelligence", "ux", "ui", "design", "product",
+    "manager", "lead", "agile", "scrum", "analyst", "analytics", "crm", "erp", 
+    "finance", "accountant", "hr", "marketing", "seo", "director"
+]
+
+# Tier 3: Broad Root Blacklist (Kill by root word, if no immunity)
+TIER3_ROOT_WORDS = [
+    "clean", "caretak", "janitor", "ground", "garden", "landscap",
+    "cook", "cater", "baker", "cashier", "hair", "beauti", "barber", "maintain", "maintenance"
 ]

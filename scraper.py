@@ -4,7 +4,7 @@ import os
 import re
 import time
 from bs4 import BeautifulSoup
-from config import API_URL, PAYLOAD, HEADERS, STOP_WORDS
+from config import API_URL, PAYLOAD, HEADERS, TIER1_EXACT_PHRASES, TIER2_WHITELIST, TIER3_ROOT_WORDS
 
 def load_json(filename):
     """Loads a JSON file or returns an empty list if not found."""
@@ -49,7 +49,6 @@ def run_scraper():
     total_skipped = 0
     total_rejected = 0
     total_accepted = 0
-    total_available = None
     
     print(f"Starting Stage 2.2 Pipeline (Autonomous Debugging)...")
     
@@ -76,15 +75,6 @@ def run_scraper():
             containers = soup.find_all("div", class_="job-heading scheme-box")
             print(f"DEBUG: Found {len(containers)} job containers on this page.")
             
-            # Extract totalCount if not already known
-            if total_available is None:
-                total_count_input = soup.find("input", class_="totalCount")
-                if total_count_input and total_count_input.get("value"):
-                    total_available = int(total_count_input.get("value"))
-                    print(f"DEBUG: Total available jobs (from HTML): {total_available}")
-                else:
-                    print("DEBUG: Could not find 'totalCount' hidden input.")
-
             if not containers:
                 print(f"STOP: No more jobs found on Page {page}. Breaking loop.")
                 break
@@ -117,22 +107,41 @@ def run_scraper():
                     "EndDate": end_date
                 }
                 
-                # Rule 2 (Keyword Check with Regex Word Boundaries)
-                matched_word = None
+                # Rule 2 (3-Tier Keyword Check)
                 title_lower = job_title.lower()
-                for word in STOP_WORDS:
-                    # Use regex word boundaries \b to prevent false positives (e.g., "cook" matching "cookbook")
-                    pattern = rf"\b{re.escape(word.lower())}\b"
+                
+                # Tier 1 Check
+                tier1_match = next((phrase for phrase in TIER1_EXACT_PHRASES if phrase in title_lower), None)
+                if tier1_match:
+                    job_data["Reason"] = f"Tier 1 Blacklist: {tier1_match}"
+                    rejected.append(job_data)
+                    total_rejected += 1
+                    existing_ids.add(job_id)
+                    continue
+                
+                # Tier 2 Check
+                tier2_match = next((word for word in TIER2_WHITELIST if word in title_lower), None)
+                if tier2_match:
+                    job_data["Status"] = f"Immunity Granted - Pending AI: {tier2_match}"
+                    accepted.append(job_data)
+                    total_accepted += 1
+                    existing_ids.add(job_id)
+                    continue
+                
+                # Tier 3 Check
+                tier3_match = None
+                for word in TIER3_ROOT_WORDS:
+                    pattern = rf"\b{re.escape(word)}"
                     if re.search(pattern, title_lower):
-                        matched_word = word
+                        tier3_match = word
                         break
                 
-                if matched_word:
-                    job_data["Reason"] = f"Keyword Filter: {matched_word}"
+                if tier3_match:
+                    job_data["Reason"] = f"Tier 3 Root Match: {tier3_match}"
                     rejected.append(job_data)
                     total_rejected += 1
                 else:
-                    job_data["Status"] = "Passed Stage 2 - Pending AI"
+                    job_data["Status"] = "Passed All Filters - Pending AI"
                     accepted.append(job_data)
                     total_accepted += 1
                 
@@ -143,11 +152,6 @@ def run_scraper():
             save_json("accepted.json", accepted)
             save_json("rejected.json", rejected)
             
-            # Check if we should stop based on total_available
-            if total_available is not None and total_fetched_this_run >= total_available:
-                print(f"STOP: Fetched {total_fetched_this_run} jobs, which matches/exceeds total available ({total_available}).")
-                break
-
             # Anti-DDoS Delay
             print("DEBUG: Sleeping for 2 seconds...")
             time.sleep(2)
@@ -162,7 +166,7 @@ def run_scraper():
     # 6. Final Console Output
     print("-" * 30)
     print("AGGREGATE RUN SUMMARY:")
-    print(f"Total Pages Fetched: {page}")
+    print(f"Total Pages Fetched: {page - 1}")
     print(f"Total Jobs Fetched:  {total_fetched_this_run}")
     print(f"Skipped (Dupes):     {total_skipped}")
     print(f"Newly Rejected:      {total_rejected}")
